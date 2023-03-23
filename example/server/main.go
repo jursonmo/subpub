@@ -14,7 +14,7 @@ import (
 
 var (
 	configPath string
-	Version    string
+	Version    string = "unset by build"
 )
 
 func init() {
