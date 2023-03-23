@@ -1,0 +1,9 @@
+name: subpub
+server:
+  http:
+    network: tcp4
+    addr: 0.0.0.0:8000
+    timeout: 1
+
+log:
+  source: subpub.log
