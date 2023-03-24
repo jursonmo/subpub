@@ -16,6 +16,10 @@ import (
 	"github.com/jursonmo/subpub/message"
 )
 
+//subpub client sdk
+//subscribe with handler
+//sync.Map
+
 type Client struct {
 	sync.Mutex
 	ctx    context.Context
@@ -34,7 +38,9 @@ type Client struct {
 	once        sync.Once
 	chanBufSize int
 
-	subChan map[message.Topic]chan []byte
+	//pubHandler map[message.Topic]PushMsgHandler
+	pubHandler sync.Map
+	subChan    map[message.Topic]chan []byte
 }
 
 type ClientOption func(o *Client)
@@ -155,9 +161,10 @@ func (c *Client) Channel(topic message.Topic) chan []byte {
 	return ch
 }
 
-func (c *Client) putPubMsg(topic message.Topic, data []byte) {
+/*
+func (c *Client) putPubMsg(topic string, data []byte) {
 	c.Lock()
-	ch, ok := c.subChan[topic]
+	ch, ok := c.subChan[message.Topic(topic)]
 	if !ok {
 		c.Unlock()
 		return
@@ -165,18 +172,46 @@ func (c *Client) putPubMsg(topic message.Topic, data []byte) {
 	c.Unlock()
 	ch <- data
 }
+*/
 
-func (c *Client) Subscribe(topic string) (chan []byte, error) {
+type PushMsgHandler func(string, []byte)
+
+func (c *Client) sendSubscribe(topic string) error {
 	m := message.SubMsg{Topic: message.Topic(topic)}
 	data, err := c.codec.Marshal(m)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	err = c.conn.WriteMessage(ws.BinaryMessage, data)
 	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Client) SubscribeWithHandler(topic string, handler PushMsgHandler) error {
+	if err := c.sendSubscribe(topic); err != nil {
+		return err
+	}
+
+	c.pubHandler.Store(message.Topic(topic), handler)
+
+	c.once.Do(
+		func() {
+			go c.readMessage()
+		})
+	return nil
+}
+
+func (c *Client) Subscribe(topic string) (chan []byte, error) {
+	if err := c.sendSubscribe(topic); err != nil {
 		return nil, err
 	}
+
 	ch := c.Channel(message.Topic(topic))
+	//c.pubHandler.Store(message.Topic(topic), c.putPubMsg)
+	c.pubHandler.Store(message.Topic(topic), PushMsgHandler(func(s string, b []byte) { ch <- b }))
+
 	c.once.Do(
 		func() {
 			go c.readMessage()
@@ -207,7 +242,9 @@ func (c *Client) readMessage() {
 				log.Println(err)
 				continue
 			}
-			c.putPubMsg(m.Topic, m.Body)
+			if h, ok := c.pubHandler.Load(m.Topic); ok {
+				h.(PushMsgHandler)(string(m.Topic), m.Body)
+			}
 		}
 	}
 }

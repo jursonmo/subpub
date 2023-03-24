@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -12,8 +13,8 @@ import (
 	"github.com/jursonmo/subpub/client"
 )
 
-var topic1 = "xxx1"
-var topic2 = "xxx2"
+var topic1 = "topic1"
+var topic2 = "topic2"
 var wg = sync.WaitGroup{}
 
 func main() {
@@ -54,15 +55,13 @@ func subscribe(ctx context.Context) {
 		ShowSubscirbe(topic1, ch1)
 	}()
 
-	ch2, err := cli.Subscribe(topic2)
+	handler := func(topic string, data []byte) {
+		fmt.Printf("receive message, topic:%s, data:%s\n", topic, string(data))
+	}
+	err = cli.SubscribeWithHandler(topic2, client.PushMsgHandler(handler))
 	if err != nil {
 		log.Panic(err)
 	}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		ShowSubscirbe(topic2, ch2)
-	}()
 }
 
 func publish(ctx context.Context) {
@@ -74,11 +73,11 @@ func publish(ctx context.Context) {
 	if err != nil {
 		log.Panic(err)
 	}
-	err = pubCli.Publish(topic1, []byte("publis test"))
+	err = pubCli.Publish(topic1, []byte("publish topic1 message"))
 	if err != nil {
 		log.Panic(err)
 	}
-	err = pubCli.Publish(topic2, []byte("publis test"))
+	err = pubCli.Publish(topic2, []byte("publish topic2 message"))
 	if err != nil {
 		log.Panic(err)
 	}
