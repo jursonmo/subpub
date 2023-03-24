@@ -24,7 +24,7 @@ func main() {
 		logger,
 		server.WithName("serverExample"),
 		server.WithNetwork("tcp4"),
-		server.WithAddress("localhost:8080"))
+		server.WithAddress("localhost:8000"))
 
 	if err != nil {
 		mylog.Errorf("NewServer fail:%v", err)
