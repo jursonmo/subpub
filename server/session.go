@@ -25,6 +25,7 @@ var channelBufSize = 128
 type Subscrber = Session
 type Session struct {
 	sync.Mutex
+	//when session closed, need to unsubscribe all topics that already subscribed
 	topics []Topic
 	id     SessionID
 	conn   *ws.Conn
@@ -111,7 +112,7 @@ func (s *Session) Start(ctx context.Context) {
 	go s.readLoop(ctx)
 }
 
-func (s *Session) AddTopic(topic Topic) {
+func (s *Session) SubscribeTopic(topic Topic) {
 	exist := false
 	s.Lock()
 	for _, t := range s.topics {
@@ -129,6 +130,27 @@ func (s *Session) AddTopic(topic Topic) {
 	}
 }
 
+func (s *Session) UnsubscribeTopic(topic Topic) {
+	removeIndex := 0
+	exist := false
+	s.Lock()
+	for i, t := range s.topics {
+		if t == topic {
+			exist = true
+			removeIndex = i
+			break
+		}
+	}
+	if exist {
+		s.topics = append(s.topics[0:removeIndex], s.topics[removeIndex+1:]...)
+	}
+	s.Unlock()
+
+	if exist {
+		s.server.RemoveSubscriber(s, Topic(topic))
+	}
+}
+
 func (s *Session) readLoop(ctx context.Context) {
 	defer s.close()
 	defer s.log().Errorf("Session:%v readLoop quit", info(s.conn))
@@ -136,7 +158,7 @@ func (s *Session) readLoop(ctx context.Context) {
 	//conn.SetReadDeadline(time.Second * 2)
 	common.SetReadDeadline(s.conn, true, 8*time.Second)
 	for {
-		messageType, message, err := s.conn.ReadMessage()
+		messageType, msg, err := s.conn.ReadMessage()
 		if err != nil {
 			s.log().Errorf("Error during message reading:%v", err)
 			return
@@ -147,7 +169,7 @@ func (s *Session) readLoop(ctx context.Context) {
 			continue
 		}
 		sm := SubMsg{}
-		err = s.Decode(message, &sm)
+		err = s.Decode(msg, &sm)
 		if err != nil {
 			s.log().Error(err)
 			continue
@@ -157,7 +179,14 @@ func (s *Session) readLoop(ctx context.Context) {
 			s.log().Error("subscribe topic is empty")
 			continue
 		}
-		s.AddTopic(sm.Topic)
+
+		if sm.Op == message.SubscribeOp {
+			s.log().Infof("session subscribe topic:%v", sm.Topic)
+			s.SubscribeTopic(sm.Topic)
+		} else if sm.Op == message.UnsubscribeOp {
+			s.log().Infof("session unsubscribe topic:%v", sm.Topic)
+			s.UnsubscribeTopic(sm.Topic)
+		}
 	}
 }
 

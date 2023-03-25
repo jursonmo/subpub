@@ -177,7 +177,16 @@ func (c *Client) putPubMsg(topic string, data []byte) {
 type PushMsgHandler func(string, []byte)
 
 func (c *Client) sendSubscribe(topic string) error {
-	m := message.SubMsg{Topic: message.Topic(topic)}
+	m := message.SubMsg{Topic: message.Topic(topic), Op: message.SubscribeOp}
+	return c.sendMessage(m)
+}
+
+func (c *Client) sendUnsubscribe(topic string) error {
+	m := message.SubMsg{Topic: message.Topic(topic), Op: message.UnsubscribeOp}
+	return c.sendMessage(m)
+}
+
+func (c *Client) sendMessage(m message.SubMsg) error {
 	data, err := c.codec.Marshal(m)
 	if err != nil {
 		return err
@@ -217,6 +226,14 @@ func (c *Client) Subscribe(topic string) (chan []byte, error) {
 			go c.readMessage()
 		})
 	return ch, nil
+}
+
+func (c *Client) Unsubscribe(topic string) error {
+	if err := c.sendUnsubscribe(topic); err != nil {
+		return err
+	}
+	c.pubHandler.Delete(message.Topic(topic))
+	return nil
 }
 
 func (c *Client) String() string {

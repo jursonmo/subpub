@@ -22,19 +22,24 @@ func main() {
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	ctx, cancel := context.WithCancel(context.Background())
 
-	//subscribe
-	subscribe(ctx)
+	//subscribe topic1, topic2
+	subCli := subscribe(ctx)
 
-	//publish test
+	//publish topic1, topic2
 	time.Sleep(time.Second)
-	publish(ctx)
+	pubCli := publish(ctx)
+
+	time.Sleep(time.Second)
+	//test Unsubscribe
+	subCli.Unsubscribe(topic1)
+	pubCli.Publish(topic1, []byte("shoudn't recevie this mesage"))
 
 	<-interrupt
 	cancel()
 	wg.Wait()
 }
 
-func subscribe(ctx context.Context) {
+func subscribe(ctx context.Context) *client.Client {
 	cli := client.NewClient(
 		client.WithEndpoint("ws://localhost:8000/subscribe"),
 		client.WithClientCodec("json"),
@@ -62,9 +67,10 @@ func subscribe(ctx context.Context) {
 	if err != nil {
 		log.Panic(err)
 	}
+	return cli
 }
 
-func publish(ctx context.Context) {
+func publish(ctx context.Context) *client.Client {
 	pubCli := client.NewClient(
 		client.WithEndpoint("ws://localhost:8000/publish"),
 		client.WithClientCodec("json"),
@@ -81,6 +87,7 @@ func publish(ctx context.Context) {
 	if err != nil {
 		log.Panic(err)
 	}
+	return pubCli
 }
 
 func ShowSubscirbe(topic string, ch chan []byte) {
