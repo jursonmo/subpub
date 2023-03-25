@@ -159,20 +159,24 @@ func (s *Server) publishHandler(res http.ResponseWriter, req *http.Request) {
 			continue
 		}
 		s.hlog.Debugf("%v publish topic:%s", info(conn), pubMsg.Topic)
-		s.public(pubMsg.Topic, pubMsg.Body)
+		n := s.public(pubMsg.Topic, pubMsg.Body)
+		if n == 0 {
+			s.hlog.Warnf("there is no subscribers on this topic:%v", pubMsg.Topic)
+		}
 	}
 }
 
-func (s *Server) public(topic Topic, data []byte) {
+func (s *Server) public(topic Topic, data []byte) int {
 	s.subMutex.RLock()
 	defer s.subMutex.RUnlock()
 	subers, ok := s.subscribers[topic]
 	if !ok {
-		return
+		return 0
 	}
 	for _, sub := range subers.subMap {
 		sub.put(PubMsg{Topic: topic, Body: data})
 	}
+	return len(subers.subMap)
 }
 
 func (c *Session) Conn() *ws.Conn {
@@ -205,4 +209,8 @@ func (s *Server) RemoveSubscriber(sub *Subscrber, topic Topic) {
 		return
 	}
 	delete(subscribers.subMap, sub.id)
+	//there is no subscribers on this topic?
+	if len(subscribers.subMap) == 0 {
+		delete(s.subscribers, topic)
+	}
 }
