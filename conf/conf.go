@@ -12,9 +12,20 @@ type Server_HTTP struct {
 	Timeout int
 }
 
+type Server_Websocket struct {
+	// state         protoimpl.MessageState
+	// sizeCache     protoimpl.SizeCache
+	// unknownFields protoimpl.UnknownFields
+
+	Network string `protobuf:"bytes,1,opt,name=network,proto3" json:"network,omitempty"`
+	Addr    string `protobuf:"bytes,2,opt,name=addr,proto3" json:"addr,omitempty"`
+	//Path    string `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	//Timeout *durationpb.Duration `protobuf:"bytes,4,opt,name=timeout,proto3" json:"timeout,omitempty"`
+}
 type Server struct {
 	Http *Server_HTTP `protobuf:"bytes,1,opt,name=http,proto3" json:"http,omitempty"`
 	//Grpc *Server_GRPC `protobuf:"bytes,2,opt,name=grpc,proto3" json:"grpc,omitempty"`
+	Websocket *Server_Websocket
 }
 
 type Log struct {

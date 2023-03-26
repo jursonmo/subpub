@@ -51,8 +51,8 @@ func appStart(configFile string) error {
 	s, err := server.NewServer(
 		log.GetLogger(),
 		server.WithName(appConf.Name),
-		server.WithNetwork(appConf.Http.Network),
-		server.WithAddress(appConf.Http.Addr))
+		server.WithNetwork(appConf.Websocket.Network),
+		server.WithAddress(appConf.Websocket.Addr))
 
 	if err != nil {
 		mylog.Errorf("NewServer fail:%v", err)
