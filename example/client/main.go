@@ -40,10 +40,15 @@ func main() {
 }
 
 func subscribe(ctx context.Context) *client.Client {
-	cli := client.NewClient(
-		client.WithEndpoint("ws://localhost:8000/subscribe"),
+	// cli := client.NewClient(
+	// 	client.WithEndpoint("ws://localhost:8000"+client.SubscriberPath),
+	// 	client.WithClientCodec("json"),
+	// )
+	cli := client.NewSubcriber(
+		client.WithEndpoint("ws://localhost:8000"),
 		client.WithClientCodec("json"),
 	)
+
 	err := cli.Connect(ctx)
 	if err != nil {
 		log.Panic(err)
@@ -71,8 +76,15 @@ func subscribe(ctx context.Context) *client.Client {
 }
 
 func publish(ctx context.Context) *client.Client {
-	pubCli := client.NewClient(
-		client.WithEndpoint("ws://localhost:8000/publish"),
+	/*
+		pubCli := client.NewClient(
+			//client.WithEndpoint("ws://localhost:8000/publish"),
+			client.WithEndpoint("ws://localhost:8000"+client.PublisherPath),
+			client.WithClientCodec("json"),
+		)
+	*/
+	pubCli := client.NewPublisher(
+		client.WithEndpoint("ws://localhost:8000"),
 		client.WithClientCodec("json"),
 	)
 	err := pubCli.Connect(ctx)

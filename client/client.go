@@ -57,6 +57,29 @@ func WithEndpoint(uri string) ClientOption {
 	}
 }
 
+var SubscriberPath = "/subscribe"
+var PublisherPath = "/publish"
+
+func AddSubsrciberPath() ClientOption {
+	return func(o *Client) {
+		o.url += SubscriberPath
+	}
+}
+
+func AddPublisherPath() ClientOption {
+	return func(o *Client) {
+		o.url += PublisherPath
+	}
+}
+
+func NewSubcriber(opts ...ClientOption) *Client {
+	return NewClient(append(opts, AddSubsrciberPath())...)
+}
+
+func NewPublisher(opts ...ClientOption) *Client {
+	return NewClient(append(opts, AddPublisherPath())...)
+}
+
 func NewClient(opts ...ClientOption) *Client {
 	cli := &Client{
 		url:         "",
