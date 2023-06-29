@@ -119,7 +119,7 @@ func info(conn *ws.Conn) string {
 func (s *Server) subscribeHandler(res http.ResponseWriter, req *http.Request) {
 	conn, err := s.upgrader.Upgrade(res, req, nil)
 	if err != nil {
-		s.hlog.Errorf("[websocket] upgrade exception:", err)
+		s.hlog.Error("[websocket] upgrade exception:", err)
 		return
 	}
 	defer conn.Close()
@@ -134,7 +134,7 @@ func (s *Server) subscribeHandler(res http.ResponseWriter, req *http.Request) {
 func (s *Server) publishHandler(res http.ResponseWriter, req *http.Request) {
 	conn, err := s.upgrader.Upgrade(res, req, nil)
 	if err != nil {
-		s.hlog.Errorf("[websocket] upgrade exception:", err)
+		s.hlog.Error("[websocket] upgrade exception:", err)
 		return
 	}
 	defer conn.Close()
