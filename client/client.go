@@ -236,18 +236,20 @@ func (c *Client) SubscribeWithHandler(topic string, handler PushMsgHandler) erro
 }
 
 func (c *Client) Subscribe(topic string) (chan []byte, error) {
-	if err := c.sendSubscribe(topic); err != nil {
-		return nil, err
-	}
+	// if err := c.sendSubscribe(topic); err != nil {
+	// 	return nil, err
+	// }
 
-	ch := c.Channel(message.Topic(topic))
+	//ch := c.Channel(message.Topic(topic))
 	//c.pubHandler.Store(message.Topic(topic), c.putPubMsg)
-	c.pubHandler.Store(message.Topic(topic), PushMsgHandler(func(s string, b []byte) { ch <- b }))
+	//c.pubHandler.Store(message.Topic(topic), PushMsgHandler(func(s string, b []byte) { ch <- b }))
 
-	c.once.Do(
-		func() {
-			go c.readMessage()
-		})
+	// c.once.Do(
+	// 	func() {
+	// 		go c.readMessage()
+	// 	})
+	ch := c.Channel(message.Topic(topic))
+	c.SubscribeWithHandler(topic, PushMsgHandler(func(s string, b []byte) { ch <- b }))
 	return ch, nil
 }
 
