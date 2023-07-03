@@ -1,7 +1,5 @@
 package main
 
-//this client only run on tag version v1.x.x
-//should use example/clientv2
 import (
 	"context"
 	"fmt"
@@ -23,6 +21,7 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	ctx, cancel := context.WithCancel(context.Background())
+	_ = cancel
 
 	//subscribe topic1, topic2
 	subCli := subscribe(ctx)
@@ -37,8 +36,12 @@ func main() {
 	pubCli.Publish(topic1, []byte("shoudn't recevie this mesage"))
 
 	<-interrupt
-	cancel()
+	log.Println("receive interrup signal")
+	//cancel()
+	subCli.Stop(ctx)
+	pubCli.Stop(ctx)
 	wg.Wait()
+	time.Sleep(time.Second * 2)
 }
 
 func subscribe(ctx context.Context) *client.Client {
@@ -51,7 +54,7 @@ func subscribe(ctx context.Context) *client.Client {
 		client.WithClientCodec("json"),
 	)
 
-	err := cli.Connect(ctx)
+	err := cli.Start(ctx)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -68,7 +71,7 @@ func subscribe(ctx context.Context) *client.Client {
 	}()
 
 	handler := func(topic string, data []byte) {
-		fmt.Printf("receive message, topic:%s, data:%s\n", topic, string(data))
+		fmt.Printf("handler: receive message, topic:%s, data:%s\n", topic, string(data))
 	}
 	err = cli.SubscribeWithHandler(topic2, client.PushMsgHandler(handler))
 	if err != nil {
@@ -89,7 +92,7 @@ func publish(ctx context.Context) *client.Client {
 		client.WithEndpoint("ws://localhost:8000"),
 		client.WithClientCodec("json"),
 	)
-	err := pubCli.Connect(ctx)
+	err := pubCli.Start(ctx)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -105,14 +108,20 @@ func publish(ctx context.Context) *client.Client {
 }
 
 func ShowSubscirbe(topic string, ch chan []byte) {
-	for {
-		select {
-		case data, ok := <-ch:
-			if !ok {
-				log.Printf("subscribe topic:%s close", topic)
-				return
-			}
-			log.Printf("subscriber receive topic:%s, content:%s\n", topic, string(data))
-		}
+	// for {
+	// 	select {
+	// 	case data, ok := <-ch:
+	// 		if !ok {
+	// 			log.Printf("subscribe topic:%s close", topic)
+	// 			return
+	// 		}
+	// 		log.Printf("subscriber receive topic:%s, content:%s\n", topic, string(data))
+	// 	}
+	// }
+
+	for data := range ch {
+		log.Printf("subscriber chan receive topic:%s, content:%s\n", topic, string(data))
 	}
+	log.Printf("subscribe topic:%s close", topic)
+	return
 }
