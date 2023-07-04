@@ -1,6 +1,9 @@
 package server
 
-import "time"
+import (
+	"crypto/tls"
+	"time"
+)
 
 type ServerOption func(o *Server)
 
@@ -25,5 +28,11 @@ func WithTimeout(timeout time.Duration) ServerOption {
 func WithName(name string) ServerOption {
 	return func(s *Server) {
 		s.name = name
+	}
+}
+
+func WithTLSConfig(tc *tls.Config) ServerOption {
+	return func(s *Server) {
+		s.tlsConf = tc
 	}
 }

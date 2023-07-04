@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"fmt"
 	"os"
 
@@ -41,6 +42,14 @@ var RootCmd = &cobra.Command{
 	},
 }
 
+func getTlsConfig(crt, key string) *tls.Config {
+	cert, err := tls.LoadX509KeyPair(crt, key)
+	if err != nil {
+		return nil
+	}
+	return &tls.Config{Certificates: []tls.Certificate{cert}}
+}
+
 func appStart(configFile string) error {
 	appConf := conf.ConfigPrase(configFile)
 	fmt.Printf("config: %+v\n", appConf)
@@ -48,11 +57,14 @@ func appStart(configFile string) error {
 	InitLogger(appConf.Log.Source)
 	mylog := log.NewHelper(log.With(log.GetLogger(), "caller", log.Caller(4)))
 
+	tlsConf := getTlsConfig("../cert/server.crt", "../cert/server.key")
+
 	s, err := server.NewServer(
 		log.GetLogger(),
 		server.WithName(appConf.Name),
 		server.WithNetwork(appConf.Websocket.Network),
-		server.WithAddress(appConf.Websocket.Addr))
+		server.WithAddress(appConf.Websocket.Addr),
+		server.WithTLSConfig(tlsConf))
 
 	if err != nil {
 		mylog.Errorf("NewServer fail:%v", err)
