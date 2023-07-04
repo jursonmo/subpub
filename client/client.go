@@ -136,12 +136,8 @@ func (c *Client) Start(ctx context.Context) error {
 			c.eg.Go(func() error {
 				return c.heartbeat()
 			})
-			c.eg.Go(func() error {
-				return c.readMessage()
-			})
-			c.eg.Go(func() error {
-				return c.sendMessage()
-			})
+			c.eg.Go(c.readMessage)
+			c.eg.Go(c.sendMessage)
 			err = c.eg.Wait()
 			log.Printf("wait endpoint:%v, err:%v\n", c.endpoint.String(), err)
 			if c.onDisConnHandler != nil {
