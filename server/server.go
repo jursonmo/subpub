@@ -125,7 +125,7 @@ func (s *Server) subscribeHandler(res http.ResponseWriter, req *http.Request) {
 	defer conn.Close()
 	s.hlog.Infof("new conn:%v", info(conn))
 
-	session := NewSession(conn, s)
+	session := NewSession(conn, s, SessionTimeout(s.timeout))
 	session.Start(s.ctx)
 	session.wait()
 	s.hlog.Errorf("subscribeHandler:%v over---", info(conn))

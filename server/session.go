@@ -26,28 +26,40 @@ type Subscrber = Session
 type Session struct {
 	sync.Mutex
 	//when session closed, need to unsubscribe all topics that already subscribed
-	topics []Topic
-	id     SessionID
-	conn   *ws.Conn
-	server *Server
-	send   chan []byte
-	codec  encoding.Codec
-	done   chan struct{}
-	closed bool
+	topics  []Topic
+	id      SessionID
+	conn    *ws.Conn
+	server  *Server
+	timeout time.Duration //heartbeat timeout and close session
+	send    chan []byte
+	codec   encoding.Codec
+	done    chan struct{}
+	closed  bool
+}
+type SessionOpt func(*Session)
+
+func SessionTimeout(d time.Duration) SessionOpt {
+	return func(s *Session) {
+		s.timeout = d
+	}
 }
 
-func NewSession(conn *ws.Conn, s *Server) *Session {
+func NewSession(conn *ws.Conn, s *Server, opts ...SessionOpt) *Session {
 	u1, err := uuid.NewUUID()
 	if err != nil {
 		s.hlog.Error(err)
 	}
-	return &Session{
+	session := &Session{
 		id:     SessionID(u1.String()),
 		conn:   conn,
 		send:   make(chan []byte, channelBufSize),
 		server: s,
 		done:   make(chan struct{}),
 	}
+	for _, opt := range opts {
+		opt(session)
+	}
+	return session
 }
 
 func (s *Session) String() string {
@@ -83,7 +95,7 @@ func (s *Session) put(m PubMsg) {
 	select {
 	case s.send <- data:
 	default:
-		s.log().Error("%v send queue is full", s)
+		s.log().Errorf("%v send queue is full", s)
 	}
 }
 
@@ -156,7 +168,10 @@ func (s *Session) readLoop(ctx context.Context) {
 	defer s.log().Errorf("Session:%v readLoop quit", info(s.conn))
 
 	//conn.SetReadDeadline(time.Second * 2)
-	common.SetReadDeadline(s.conn, true, 8*time.Second)
+	if s.timeout == 0 {
+		panic("seesion timeout eq 0")
+	}
+	common.SetReadDeadline(s.conn, true, s.timeout)
 	for {
 		messageType, msg, err := s.conn.ReadMessage()
 		if err != nil {
