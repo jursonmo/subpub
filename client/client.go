@@ -50,7 +50,7 @@ type Client struct {
 	subChan    map[message.Topic]chan []byte
 
 	sendChan chan []byte
-	stopSend chan struct{}
+	//stopSend chan struct{}
 
 	//每次dial 的超时时间和失败回调，什么时候放弃dial, ctx cancel或者到期或者 主动client.Stop()
 	dialTimeout      time.Duration
@@ -132,12 +132,15 @@ func (c *Client) Start(ctx context.Context) error {
 			if c.onConnectHandler != nil {
 				c.onConnectHandler(c.endpoint.String(), conn.UnderlyingConn())
 			}
-			c.eg = new(errgroup.Group)
+			var nctx context.Context
+			c.eg, nctx = errgroup.WithContext(c.ctx)
 			c.eg.Go(func() error {
-				return c.heartbeat()
+				return c.heartbeat(nctx)
 			})
-			c.eg.Go(c.readMessage)
-			c.eg.Go(c.sendMessage)
+			c.eg.Go(c.readMessage) //readMessage 退出只能靠conn.Close()触发
+			c.eg.Go(func() error {
+				return c.sendMessage(nctx)
+			})
 			err = c.eg.Wait()
 			log.Printf("wait endpoint:%v, err:%v\n", c.endpoint.String(), err)
 			if c.onDisConnHandler != nil {
@@ -223,10 +226,10 @@ func (c *Client) Disconnect() {
 		log.Printf("[websocket] disconnect error: %s", err.Error())
 	}
 	c.isconnected = false
-	close(c.stopSend)
+	//close(c.stopSend) //不需要通过stopSend来通知sendMessage 退出，因为有了errgroup ctx
 }
 
-func (c *Client) heartbeat() error {
+func (c *Client) heartbeat(ctx context.Context) error {
 	defer c.Disconnect()
 	defer log.Printf("client:%v, heartbeat quit\n", c)
 
@@ -237,8 +240,8 @@ func (c *Client) heartbeat() error {
 	pingData := []byte("ping")
 	for {
 		select {
-		case <-c.ctx.Done():
-			return c.ctx.Err()
+		case <-ctx.Done():
+			return ctx.Err()
 		case <-pingTimer.C:
 			err := c.conn.WriteMessage(ws.PingMessage, pingData)
 			if err != nil {
@@ -312,18 +315,18 @@ func (c *Client) sendUnsubscribe(topic string) error {
 // 	return nil
 // }
 
-func (c *Client) sendMessage() (err error) {
+func (c *Client) sendMessage(ctx context.Context) (err error) {
 	defer c.Disconnect()
 	defer func() {
 		log.Printf("client:%v sendMessage quit, err:%v\n", c, err)
 	}()
-	c.stopSend = make(chan struct{}, 1)
+	//c.stopSend = make(chan struct{}, 1)
 	for {
 		select {
-		case <-c.ctx.Done():
-			return c.ctx.Err()
-		case <-c.stopSend:
-			return errors.New("stopSend")
+		case <-ctx.Done():
+			return ctx.Err()
+		// case <-c.stopSend:
+		// 	return errors.New("stopSend")
 		case d, ok := <-c.sendChan:
 			if !ok {
 				return errors.New("sendChan closed")
