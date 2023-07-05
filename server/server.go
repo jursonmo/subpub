@@ -23,7 +23,8 @@ type Server struct {
 	log  log.Logger
 	hlog *log.Helper
 
-	ctx context.Context
+	ctx    context.Context
+	cancel context.CancelFunc
 	*http.Server
 	lis      net.Listener
 	tlsConf  *tls.Config
@@ -93,9 +94,11 @@ func (s *Server) listen() error {
 
 func (s *Server) Start(ctx context.Context) error {
 	var err error
-	s.ctx = ctx
+	s.ctx, s.cancel = context.WithCancel(ctx)
 	s.hlog.Infof("listen on:%s,%s", s.network, s.address)
 	if s.tlsConf != nil {
+		// 其实就是tlsListener := tls.NewListener(ln, tlsConfig) + s.Serve(tlsListener)
+		// 如果没有给出证书路径，就默认用http server 的 TLSConfig 配置
 		err = s.ServeTLS(s.lis, "", "")
 	} else {
 		err = s.Serve(s.lis)
@@ -109,6 +112,9 @@ func (s *Server) Start(ctx context.Context) error {
 
 func (s *Server) Stop(ctx context.Context) error {
 	log.Info("[websocket] server stopping")
+	if s.cancel != nil {
+		s.cancel() //make all session quit
+	}
 	return s.Shutdown(ctx)
 }
 
