@@ -12,6 +12,6 @@ var VersionCmd = &cobra.Command{
 	Short: "nel proxy version",
 	Long:  `the version number of nel proxy`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("nel proxy version: %s", Version)
+		fmt.Printf("nel proxy version: %s\n", Version)
 	},
 }

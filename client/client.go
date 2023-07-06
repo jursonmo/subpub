@@ -111,7 +111,7 @@ func (c *Client) Start(ctx context.Context) error {
 		for {
 			if err := c.ctx.Err(); err != nil {
 				log.Printf("quit master task, endpoint:%v\n", c.endpoint.String())
-				c.Stop(context.Background())
+				_ = c.Stop(context.Background())
 				return
 			}
 			log.Printf("[websocket] connecting to %s", c.endpoint.String())
@@ -233,7 +233,10 @@ func (c *Client) heartbeat(ctx context.Context) error {
 	defer c.Disconnect()
 	defer log.Printf("client:%v, heartbeat quit\n", c)
 
-	common.SetReadDeadline(c.conn, false, c.hbTimeout)
+	err := common.SetReadDeadline(c.conn, false, c.hbTimeout)
+	if err != nil {
+		return err
+	}
 	pingTimer := time.NewTicker(c.hbIntvl)
 	defer pingTimer.Stop()
 
@@ -362,8 +365,8 @@ func (c *Client) Subscribe(topic string) (chan []byte, error) {
 	// 		go c.readMessage()
 	// 	})
 	ch := c.Channel(message.Topic(topic))
-	c.SubscribeWithHandler(topic, PushMsgHandler(func(s string, b []byte) { ch <- b }))
-	return ch, nil
+	err := c.SubscribeWithHandler(topic, PushMsgHandler(func(s string, b []byte) { ch <- b }))
+	return ch, err
 }
 
 func (c *Client) Unsubscribe(topic string) error {

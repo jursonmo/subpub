@@ -32,14 +32,26 @@ func main() {
 
 	time.Sleep(time.Second)
 	//test Unsubscribe
-	subCli.Unsubscribe(topic1)
-	pubCli.Publish(topic1, []byte("shoudn't recevie this mesage"))
+	err := subCli.Unsubscribe(topic1)
+	if err != nil {
+		log.Panic(err)
+	}
+	err = pubCli.Publish(topic1, []byte("shoudn't recevie this mesage"))
+	if err != nil {
+		log.Panic(err)
+	}
 
 	<-interrupt
 	log.Println("receive interrup signal")
 	//cancel()
-	subCli.Stop(ctx)
-	pubCli.Stop(ctx)
+	err = subCli.Stop(ctx)
+	if err != nil {
+		log.Panic(err)
+	}
+	err = pubCli.Stop(ctx)
+	if err != nil {
+		log.Panic(err)
+	}
 	wg.Wait()
 	time.Sleep(time.Second * 2)
 }
@@ -123,5 +135,4 @@ func ShowSubscirbe(topic string, ch chan []byte) {
 		log.Printf("subscriber chan receive topic:%s, content:%s\n", topic, string(data))
 	}
 	log.Printf("subscribe topic:%s close", topic)
-	return
 }

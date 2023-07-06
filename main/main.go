@@ -38,7 +38,7 @@ var RootCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Printf("rootCmd Run\n")
 		fmt.Printf("args:%v, configPath:%s\n", args, configPath)
-		appStart(configPath)
+		_ = appStart(configPath) //avoid golangci-lint errcheck
 	},
 }
 
