@@ -61,7 +61,7 @@ type Client struct {
 	onConnectHandler func(endpoint string, conn net.Conn)
 	onDisConnHandler func(endpoint string, err error)
 	onStopHandler    func(endpoint string)
-	eg               *errgroup.Group //for heartbeat, readMessage
+	eg               *errgroup.Group //for notifing heartbeat, readMessage, sendMessage quit at same time
 }
 
 var SubscriberPath = "/subscribe"
