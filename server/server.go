@@ -146,14 +146,18 @@ func (s *Server) publishHandler(res http.ResponseWriter, req *http.Request) {
 	defer conn.Close()
 
 	//conn.SetReadDeadline(time.Now().Add(time.Second * 2))
-	common.SetReadDeadline(conn, true, time.Second*8)
+	err = common.SetReadDeadline(conn, true, time.Second*8)
+	if err != nil {
+		s.hlog.Error(err)
+		return
+	}
 	for {
 		t, msg, err := conn.ReadMessage()
 		if err != nil {
 			s.hlog.Error(err)
 			return
 		}
-		conn.SetReadDeadline(time.Time{})
+		//conn.SetReadDeadline(time.Time{}) //不需要重置为不超时，common.SetReadDeadline会不断重置超时时间
 		if t != ws.BinaryMessage {
 			s.hlog.Errorf("unsuport msg type:%v, only support BinaryMessage:%d", t, ws.BinaryMessage)
 			return
