@@ -133,12 +133,12 @@ func (s *Session) SubscribeTopic(topic Topic) {
 		}
 	}
 	if !exist {
-		s.topics = append(s.topics, Topic(topic))
+		s.topics = append(s.topics, topic)
 	}
 	s.Unlock()
 
 	if !exist {
-		s.server.AddSubscriber(s, Topic(topic))
+		s.server.AddSubscriber(s, topic)
 	}
 }
 
@@ -163,7 +163,7 @@ func (s *Session) UnsubscribeTopic(topic Topic) {
 	}
 }
 
-func (s *Session) readLoop(ctx context.Context) {
+func (s *Session) readLoop(ctx context.Context) error {
 	defer s.close()
 	defer s.log().Errorf("Session:%v readLoop quit", info(s.conn))
 
@@ -171,12 +171,15 @@ func (s *Session) readLoop(ctx context.Context) {
 	if s.timeout == 0 {
 		panic("seesion timeout eq 0")
 	}
-	common.SetReadDeadline(s.conn, true, s.timeout)
+	err := common.SetReadDeadline(s.conn, true, s.timeout)
+	if err != nil {
+		return err
+	}
 	for {
 		messageType, msg, err := s.conn.ReadMessage()
 		if err != nil {
 			s.log().Errorf("Error during message reading:%v", err)
-			return
+			return err
 		}
 		if messageType != ws.BinaryMessage {
 			s.log().Errorf("subscribe msg don't support messageType:%v, but only BinaryMessage, close:%v",
