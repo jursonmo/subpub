@@ -12,6 +12,7 @@ import (
 	ws "github.com/gorilla/websocket"
 	"github.com/jursonmo/subpub/common"
 	"github.com/jursonmo/subpub/message"
+	"golang.org/x/sync/errgroup"
 )
 
 type Topic = message.Topic
@@ -35,6 +36,7 @@ type Session struct {
 	codec   encoding.Codec
 	done    chan struct{}
 	closed  bool
+	eg      *errgroup.Group
 }
 type SessionOpt func(*Session)
 
@@ -99,8 +101,9 @@ func (s *Session) put(m PubMsg) {
 	}
 }
 
-func (s *Session) wait() {
-	<-s.done
+func (s *Session) wait() error {
+	//<-s.done
+	return s.eg.Wait()
 }
 
 func (s *Session) close() {
@@ -110,7 +113,7 @@ func (s *Session) close() {
 		return
 	}
 	s.closed = true
-	close(s.done)
+	//close(s.done) //instead of errgroup
 
 	for _, topic := range s.topics {
 		s.server.RemoveSubscriber(s, topic)
@@ -119,9 +122,17 @@ func (s *Session) close() {
 
 	s.log().Errorf("%v close ok", s)
 }
+
 func (s *Session) Start(ctx context.Context) {
-	go s.writeLoop(ctx)
-	go s.readLoop(ctx)
+	// go s.writeLoop(ctx)
+	// go s.readLoop(ctx)
+	s.eg, ctx = errgroup.WithContext(ctx)
+	s.eg.Go(func() error {
+		return s.writeLoop(ctx)
+	})
+	s.eg.Go(func() error {
+		return s.readLoop(ctx)
+	})
 }
 
 func (s *Session) SubscribeTopic(topic Topic) {
@@ -159,7 +170,7 @@ func (s *Session) UnsubscribeTopic(topic Topic) {
 	s.Unlock()
 
 	if exist {
-		s.server.RemoveSubscriber(s, Topic(topic))
+		s.server.RemoveSubscriber(s, topic)
 	}
 }
 
@@ -208,7 +219,7 @@ func (s *Session) readLoop(ctx context.Context) error {
 	}
 }
 
-func (s *Session) writeLoop(ctx context.Context) {
+func (s *Session) writeLoop(ctx context.Context) error {
 	var err error
 	defer s.close()
 	defer s.log().Errorf("Session:%v writeLoop quit", info(s.conn))
@@ -219,10 +230,10 @@ func (s *Session) writeLoop(ctx context.Context) {
 			if err != nil {
 				s.log().Error(err)
 			}
-		case <-s.done:
-			return
+		// case <-s.done:
+		// 	return
 		case <-ctx.Done():
-			return
+			return ctx.Err()
 		}
 	}
 }

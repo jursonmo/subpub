@@ -133,8 +133,8 @@ func (s *Server) subscribeHandler(res http.ResponseWriter, req *http.Request) {
 
 	session := NewSession(conn, s, SessionTimeout(s.timeout))
 	session.Start(s.ctx)
-	session.wait()
-	s.hlog.Errorf("subscribeHandler:%v over---", info(conn))
+	err = session.wait()
+	s.hlog.Errorf("subscribeHandler over:%v, err:%v", info(conn), err)
 }
 
 func (s *Server) publishHandler(res http.ResponseWriter, req *http.Request) {
