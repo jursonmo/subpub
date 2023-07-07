@@ -24,5 +24,10 @@ ENV LANG C.UTF-8
 # 暴露端口, 0.0.0.0:8000->8000/tcp
 EXPOSE 8000
 
-# 运行程序的命令，进入已经运行的容器查看相关文件是否正常copy: docker exec -it ${container_name} /bin/sh
+#CMD, 如果用户启动容器时候指定了运行的命令，则会覆盖掉 CMD 指定的命令
+#CMD ["/apps/subpub/bin/server", "-c" ,"/apps/subpub/config/config.yaml"]
+
+# 运行程序的命令
 ENTRYPOINT ["/apps/subpub/bin/server", "-c" ,"/apps/subpub/config/config.yaml"]
+
+#进入已经运行的容器查看相关文件是否正常copy: docker exec -it ${container_name} /bin/sh
