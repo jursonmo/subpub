@@ -1,7 +1,7 @@
 PROJECT_NAME:=server
 VERSION:=v2
 ImageName:=subpub_${PROJECT_NAME}:${VERSION}
-
+ContainerName:=subpub_${PROJECT_NAME}
 
 .PHONY: image run stop build clean
 
@@ -12,11 +12,11 @@ image:
 	docker build -t ${ImageName} .
 
 run:
-	docker run  -itd  --name subpub_${PROJECT_NAME} \
+	docker run  -itd  --name ${ContainerName} \
 	-p 8000:8000 ${ImageName}
 
 stop:
-	docker stop subpub_${PROJECT_NAME}
+	docker stop ${ContainerName}
 
 clean:
 	rm -rf ./bin/${PROJECT_NAME} 
