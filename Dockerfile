@@ -30,4 +30,6 @@ EXPOSE 8000
 # 运行程序的命令
 ENTRYPOINT ["/apps/subpub/bin/server", "-c" ,"/apps/subpub/config/config.yaml"]
 
+# docker inspect 镜像名称 ，获取镜像的元数据, docker history：查看镜像的构建历史，可以看到各个操作的大小
+
 #进入已经运行的容器查看相关文件是否正常copy: docker exec -it ${container_name} /bin/sh
