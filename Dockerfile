@@ -11,7 +11,7 @@ WORKDIR /apps/subpub
 COPY bin/server /apps/subpub/bin/server
 
 # 拷贝配置文件到容器中
-COPY config/config.yaml /apps/subpub/config/config.yaml
+COPY configs/config.yaml /apps/subpub/configs/config.yaml
 COPY cert/* /apps/subpub/cert/
 
 # 设置时区为上海
@@ -25,10 +25,10 @@ ENV LANG C.UTF-8
 EXPOSE 8000
 
 #CMD, 如果用户启动容器时候指定了运行的命令，则会覆盖掉 CMD 指定的命令
-#CMD ["/apps/subpub/bin/server", "-c" ,"/apps/subpub/config/config.yaml"]
+#CMD ["/apps/subpub/bin/server", "-c" ,"/apps/subpub/configs/config.yaml"]
 
 # 运行程序的命令
-ENTRYPOINT ["/apps/subpub/bin/server", "-c" ,"/apps/subpub/config/config.yaml"]
+ENTRYPOINT ["/apps/subpub/bin/server", "-c" ,"/apps/subpub/configs/config.yaml"]
 
 # docker inspect 镜像名称 ，获取镜像的元数据, docker history：查看镜像的构建历史，可以看到各个操作的大小
 

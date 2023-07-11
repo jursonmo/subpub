@@ -3,7 +3,7 @@ VERSION:=v2
 ImageName:=subpub_${PROJECT_NAME}:${VERSION}
 ContainerName:=subpub_${PROJECT_NAME}
 
-.PHONY: image run stop build clean
+.PHONY: image run stop build rm rmi clean
 
 build:
 	bash build.sh ${PROJECT_NAME}
@@ -17,6 +17,13 @@ run:
 
 stop:
 	docker stop ${ContainerName}
+
+rm:
+	docker rm ${ContainerName}
+
+rmi:
+	echo "docker rmi ${ImageName}"
+	docker rmi ${ImageName}
 
 clean:
 	rm -rf ./bin/${PROJECT_NAME} 
