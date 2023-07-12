@@ -9,9 +9,9 @@ import (
 var Version string
 var VersionCmd = &cobra.Command{
 	Use:   "version",
-	Short: "nel proxy version",
-	Long:  `the version number of nel proxy`,
+	Short: "subpub version",
+	Long:  `the version number of subscriber and publisher server`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("nel proxy version: %s\n", Version)
+		fmt.Printf("subpub version: %s\n", Version)
 	},
 }
