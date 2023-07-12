@@ -36,3 +36,9 @@ func WithTLSConfig(tc *tls.Config) ServerOption {
 		s.tlsConf = tc
 	}
 }
+
+func WithPathHandler(path string, h WsHandler) ServerOption {
+	return func(s *Server) {
+		s.pathHandlers[path] = h
+	}
+}

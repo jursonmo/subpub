@@ -26,6 +26,7 @@ var channelBufSize = 128
 type Subscrber = Session
 type Session struct {
 	sync.Mutex
+	msgHandlers map[int]SessionMsgHandle
 	//when session closed, need to unsubscribe all topics that already subscribed
 	topics  []Topic
 	id      SessionID
@@ -38,6 +39,7 @@ type Session struct {
 	closed  bool
 	eg      *errgroup.Group
 }
+
 type SessionOpt func(*Session)
 
 func SessionTimeout(d time.Duration) SessionOpt {
@@ -192,30 +194,39 @@ func (s *Session) readLoop(ctx context.Context) error {
 			s.log().Errorf("Error during message reading:%v", err)
 			return err
 		}
-		if messageType != ws.BinaryMessage {
-			s.log().Errorf("subscribe msg don't support messageType:%v, but only BinaryMessage, close:%v",
-				messageType, info(s.conn))
-			continue
-		}
-		sm := SubMsg{}
-		err = s.Decode(msg, &sm)
-		if err != nil {
-			s.log().Error(err)
-			continue
+		s.Lock()
+		h, ok := s.msgHandlers[messageType]
+		s.Unlock()
+		if ok {
+			h(s, msg)
 		}
 
-		if sm.Topic == "" {
-			s.log().Error("subscribe topic is empty")
-			continue
-		}
+		/*
+			if messageType != ws.BinaryMessage {
+				s.log().Errorf("subscribe msg don't support messageType:%v, but only BinaryMessage, close:%v",
+					messageType, info(s.conn))
+				continue
+			}
+			sm := SubMsg{}
+			err = s.Decode(msg, &sm)
+			if err != nil {
+				s.log().Error(err)
+				continue
+			}
 
-		if sm.Op == message.SubscribeOp {
-			s.log().Infof("session subscribe topic:%v", sm.Topic)
-			s.SubscribeTopic(sm.Topic)
-		} else if sm.Op == message.UnsubscribeOp {
-			s.log().Infof("session unsubscribe topic:%v", sm.Topic)
-			s.UnsubscribeTopic(sm.Topic)
-		}
+			if sm.Topic == "" {
+				s.log().Error("subscribe topic is empty")
+				continue
+			}
+
+			if sm.Op == message.SubscribeOp {
+				s.log().Infof("session subscribe topic:%v", sm.Topic)
+				s.SubscribeTopic(sm.Topic)
+			} else if sm.Op == message.UnsubscribeOp {
+				s.log().Infof("session unsubscribe topic:%v", sm.Topic)
+				s.UnsubscribeTopic(sm.Topic)
+			}
+		*/
 	}
 }
 

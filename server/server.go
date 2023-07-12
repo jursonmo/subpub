@@ -39,7 +39,11 @@ type Server struct {
 	subscribers map[Topic]*Subscribers
 
 	codec encoding.Codec //default json
+
+	pathHandlers map[string]WsHandler //key:path, value:handler
 }
+
+type WsHandler func(s *Server, w http.ResponseWriter, r *http.Request)
 
 type Subscribers struct {
 	subMap map[SessionID]*Subscrber
@@ -47,12 +51,13 @@ type Subscribers struct {
 
 func NewServer(logger log.Logger, opts ...ServerOption) (*Server, error) {
 	s := &Server{
-		network:     "tcp4",
-		address:     "localhost:8080",
-		timeout:     time.Second * 10,
-		log:         logger,
-		codec:       encoding.GetCodec("json"),
-		subscribers: make(map[message.Topic]*Subscribers),
+		network:      "tcp4",
+		address:      "localhost:8080",
+		timeout:      time.Second * 10,
+		log:          logger,
+		codec:        encoding.GetCodec("json"),
+		subscribers:  make(map[message.Topic]*Subscribers),
+		pathHandlers: make(map[string]WsHandler),
 	}
 
 	s.upgrader = &ws.Upgrader{
@@ -73,6 +78,13 @@ func NewServer(logger log.Logger, opts ...ServerOption) (*Server, error) {
 
 	if err := s.listen(); err != nil {
 		return nil, err
+	}
+
+	//option path handler 注册到ws HandleFunc
+	for path, handler := range s.pathHandlers {
+		http.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+			handler(s, w, r)
+		})
 	}
 
 	http.HandleFunc("/subscribe", s.subscribeHandler)
@@ -132,6 +144,7 @@ func (s *Server) subscribeHandler(res http.ResponseWriter, req *http.Request) {
 	s.hlog.Infof("new conn:%v", info(conn))
 
 	session := NewSession(conn, s, SessionTimeout(s.timeout))
+	session.RegisterMsgHandler(ws.BinaryMessage, topicMsgHandle)
 	session.Start(s.ctx)
 	err = session.wait()
 	s.hlog.Errorf("subscribeHandler over:%v, err:%v", info(conn), err)
