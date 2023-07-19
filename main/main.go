@@ -15,7 +15,7 @@ import (
 
 var (
 	configPath string
-	Version    string = "unset by build"
+	Version    string = "unset by build" //会被替换: -ldflags "-X main.Version=${VERSION}"
 )
 
 func init() {

@@ -30,7 +30,7 @@ EXPOSE 8000
 # 运行程序的命令
 ENTRYPOINT ["/apps/subpub/bin/server", "-c" ,"/apps/subpub/configs/config.yaml"]
 
-#1. docker inspect 镜像名称，获取镜像的元数据, docker image ls {image_name} 查看大小, docker history：查看镜像的构建历史，可以看到各个操作的大小
+#1. docker inspect 镜像名称，获取镜像的元数据, docker image ls {image_name} 查看大小, docker image history：查看镜像的构建历史，可以看到各个操作的大小
 #2. 进入已经运行的容器查看相关文件是否正常copy: docker exec -it ${container_name} /bin/sh
 #3. 最好用多阶段构建方式，就不需要在本地安装go了，同时有能使镜像很小。
 

@@ -6,4 +6,7 @@ if [ -n "$1" ];then
     echo "build -o $1"
     exe_file=$1
 fi
-go build -o ./bin/$exe_file ./main/*.go
+VERSION=$2
+echo "version:${VERSION}"
+mkdir -p bin/
+go build -ldflags "-X main.Version=${VERSION}" -o ./bin/$exe_file ./main/*.go
