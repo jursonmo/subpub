@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"net"
 	"sync"
 	"time"
 
@@ -12,13 +13,14 @@ import (
 	ws "github.com/gorilla/websocket"
 	"github.com/jursonmo/subpub/common"
 	"github.com/jursonmo/subpub/message"
+	"github.com/jursonmo/subpub/session"
 	"golang.org/x/sync/errgroup"
 )
 
 type Topic = message.Topic
 type SubMsg = message.SubMsg
 type PubMsg = message.PubMsg
-type SessionID string
+type sessionID string
 
 var channelBufSize = 128
 
@@ -29,7 +31,7 @@ type Session struct {
 	msgHandlers map[int]SessionMsgHandle
 	//when session closed, need to unsubscribe all topics that already subscribed
 	topics  []Topic
-	id      SessionID
+	id      sessionID
 	conn    *ws.Conn
 	server  *Server
 	timeout time.Duration //heartbeat timeout and close session
@@ -38,6 +40,21 @@ type Session struct {
 	done    chan struct{}
 	closed  bool
 	eg      *errgroup.Group
+}
+
+//check on compiling
+var _ session.Sessioner = (*Session)(nil)
+
+//实现 session.Sessioner 接口
+func (s *Session) SessionID() string {
+	return string(s.id)
+}
+func (s *Session) UnderlayConn() net.Conn {
+	return s.conn.UnderlyingConn()
+}
+
+func (c *Session) Conn() *ws.Conn {
+	return c.conn
 }
 
 type SessionOpt func(*Session)
@@ -54,7 +71,7 @@ func NewSession(conn *ws.Conn, s *Server, opts ...SessionOpt) *Session {
 		s.hlog.Error(err)
 	}
 	session := &Session{
-		id:     SessionID(u1.String()),
+		id:     sessionID(u1.String()),
 		conn:   conn,
 		send:   make(chan []byte, channelBufSize),
 		server: s,

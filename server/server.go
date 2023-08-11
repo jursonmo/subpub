@@ -16,6 +16,7 @@ import (
 	ws "github.com/gorilla/websocket"
 	"github.com/jursonmo/subpub/common"
 	"github.com/jursonmo/subpub/message"
+	"github.com/jursonmo/subpub/session"
 )
 
 type Server struct {
@@ -41,12 +42,15 @@ type Server struct {
 	codec encoding.Codec //default json
 
 	pathHandlers map[string]WsHandler //key:path, value:handler
+
+	onConnect    func(session.Sessioner)
+	onDisconnect func(session.Sessioner)
 }
 
 type WsHandler func(s *Server, w http.ResponseWriter, r *http.Request)
 
 type Subscribers struct {
-	subMap map[SessionID]*Subscrber
+	subMap map[sessionID]*Subscrber
 }
 
 func NewServer(logger log.Logger, opts ...ServerOption) (*Server, error) {
@@ -146,8 +150,14 @@ func (s *Server) subscribeHandler(res http.ResponseWriter, req *http.Request) {
 	session := NewSession(conn, s, SessionTimeout(s.timeout))
 	session.RegisterMsgHandler(ws.BinaryMessage, topicMsgHandle)
 	session.Start(s.ctx)
+	if s.onConnect != nil {
+		s.onConnect(session)
+	}
 	err = session.wait()
 	s.hlog.Errorf("subscribeHandler over:%v, err:%v", info(conn), err)
+	if s.onDisconnect != nil {
+		s.onDisconnect(session)
+	}
 }
 
 func (s *Server) publishHandler(res http.ResponseWriter, req *http.Request) {
@@ -202,20 +212,12 @@ func (s *Server) public(topic Topic, data []byte) int {
 	return len(subers.subMap)
 }
 
-func (c *Session) Conn() *ws.Conn {
-	return c.conn
-}
-
-func (c *Session) SessionID() SessionID {
-	return c.id
-}
-
 func (s *Server) AddSubscriber(sub *Subscrber, topic Topic) {
 	s.subMutex.Lock()
 	defer s.subMutex.Unlock()
 	subscribers, ok := s.subscribers[topic]
 	if !ok {
-		subMap := make(map[SessionID]*Subscrber)
+		subMap := make(map[sessionID]*Subscrber)
 		subMap[sub.id] = sub
 
 		s.subscribers[topic] = &Subscribers{subMap: subMap}
