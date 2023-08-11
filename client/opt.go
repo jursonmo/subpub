@@ -1,10 +1,10 @@
 package client
 
 import (
-	"net"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
+	"github.com/jursonmo/subpub/session"
 )
 
 type ClientOption func(o *Client)
@@ -51,19 +51,19 @@ func WithOnDialFial(h func(string, error)) ClientOption {
 	}
 }
 
-func WithOnConnect(h func(string, net.Conn)) ClientOption {
+func WithOnConnect(h func(session.Sessioner)) ClientOption {
 	return func(o *Client) {
 		o.onConnectHandler = h
 	}
 }
 
-func WithOnDisconnect(h func(string, error)) ClientOption {
+func WithOnDisconnect(h func(session.Sessioner, error)) ClientOption {
 	return func(o *Client) {
 		o.onDisConnHandler = h
 	}
 }
 
-func WithOnStop(h func(string)) ClientOption {
+func WithOnStop(h func(session.Sessioner)) ClientOption {
 	return func(o *Client) {
 		o.onStopHandler = h
 	}

@@ -14,9 +14,11 @@ import (
 
 	"github.com/go-kratos/kratos/v2/encoding"
 	_ "github.com/go-kratos/kratos/v2/encoding/json"
+	"github.com/google/uuid"
 	ws "github.com/gorilla/websocket"
 	"github.com/jursonmo/subpub/common"
 	"github.com/jursonmo/subpub/message"
+	"github.com/jursonmo/subpub/session"
 )
 
 //client v2.x.x
@@ -31,6 +33,7 @@ type Client struct {
 	sync.Mutex
 	ctx         context.Context
 	cancel      context.CancelFunc
+	id          string
 	conn        *ws.Conn
 	closed      bool
 	isconnected bool
@@ -49,7 +52,8 @@ type Client struct {
 	pubHandler sync.Map
 	subChan    map[message.Topic]chan []byte
 
-	sendChan chan []byte
+	//sendChan chan []byte
+	sendChan chan *Msg
 	//stopSend chan struct{}
 
 	//每次dial 的超时时间和失败回调，什么时候放弃dial, ctx cancel或者到期或者 主动client.Stop()
@@ -58,10 +62,24 @@ type Client struct {
 	hbTimeout        time.Duration
 	hbIntvl          time.Duration
 	dialFialHandler  func(endpoint string, err error)
-	onConnectHandler func(endpoint string, conn net.Conn)
-	onDisConnHandler func(endpoint string, err error)
-	onStopHandler    func(endpoint string)
+	onConnectHandler func(session session.Sessioner)
+	onDisConnHandler func(session session.Sessioner, err error)
+	onStopHandler    func(session session.Sessioner)
 	eg               *errgroup.Group //for notifing heartbeat, readMessage, sendMessage quit at same time
+}
+
+var ErrDisconnected = errors.New("Disconnected")
+var ErrClosed = errors.New("closed")
+
+//实现 session.Sessioner 接口
+func (c *Client) SessionID() string {
+	return c.id
+}
+func (c *Client) UnderlayConn() net.Conn {
+	return c.conn.UnderlyingConn()
+}
+func (c *Client) Endpoints() []string {
+	return []string{c.endpoint.String()}
 }
 
 var SubscriberPath = "/subscribe"
@@ -76,13 +94,15 @@ func NewPublisher(opts ...ClientOption) *Client {
 }
 
 func NewClient(opts ...ClientOption) *Client {
+	id, _ := uuid.NewUUID()
 	cli := &Client{
 		url:         "",
+		id:          id.String(),
 		timeout:     1 * time.Second,
 		codec:       encoding.GetCodec("json"),
 		chanBufSize: 256,
 		subChan:     make(map[message.Topic]chan []byte),
-		sendChan:    make(chan []byte),
+		sendChan:    make(chan *Msg),
 		dialTimeout: time.Second * 5,
 		dialIntvl:   time.Second * 3,
 		hbIntvl:     time.Second * 3,
@@ -128,9 +148,9 @@ func (c *Client) Start(ctx context.Context) error {
 			}
 
 			c.conn = conn
-			c.connected()
+			c.setConnected()
 			if c.onConnectHandler != nil {
-				c.onConnectHandler(c.endpoint.String(), conn.UnderlyingConn())
+				c.onConnectHandler(c)
 			}
 			var nctx context.Context
 			c.eg, nctx = errgroup.WithContext(c.ctx)
@@ -144,7 +164,7 @@ func (c *Client) Start(ctx context.Context) error {
 			err = c.eg.Wait()
 			log.Printf("wait endpoint:%v, err:%v\n", c.endpoint.String(), err)
 			if c.onDisConnHandler != nil {
-				c.onDisConnHandler(c.endpoint.String(), err)
+				c.onDisConnHandler(c, err)
 			}
 		}
 	}()
@@ -163,7 +183,7 @@ func (c *Client) Stop(ctx context.Context) error {
 
 	//清理
 	if c.onStopHandler != nil {
-		c.onStopHandler(c.endpoint.String())
+		c.onStopHandler(c)
 	}
 	if c.cancel != nil {
 		c.cancel()
@@ -173,8 +193,23 @@ func (c *Client) Stop(ctx context.Context) error {
 	for _, ch := range c.subChan {
 		close(ch)
 	}
+
+	//清理sendCh 缓存的Msg
+	c.clearMsg()
+
 	log.Printf("client:%v Stopped\n", c)
 	return nil
+}
+
+func (c *Client) clearMsg() {
+	for {
+		select {
+		case msg := <-c.sendChan:
+			msg.Complete(ErrClosed)
+		default:
+			return
+		}
+	}
 }
 
 /*
@@ -199,19 +234,37 @@ func (c *Client) Connect(ctx context.Context) error {
 */
 
 func (c *Client) Publish(topic string, content []byte) error {
-	msg := message.PubMsg{Topic: message.Topic(topic), Body: content}
-	data, err := c.codec.Marshal(msg)
+	if c.IsClosed() {
+		return ErrClosed
+	}
+	pubMsg := message.PubMsg{Topic: message.Topic(topic), Body: content}
+	data, err := c.codec.Marshal(pubMsg)
 	if err != nil {
 		return err
 	}
 	//return c.conn.WriteMessage(ws.BinaryMessage, data)
-	c.sendChan <- data
-	return nil
+	msg := NewMsg(data)
+	c.sendChan <- msg
+
+	return msg.Wait()
 }
-func (c *Client) connected() {
+
+func (c *Client) setConnected() {
 	c.Lock()
 	defer c.Unlock()
 	c.isconnected = true
+}
+
+func (c *Client) IsConnected() bool {
+	c.Lock()
+	defer c.Unlock()
+	return c.isconnected
+}
+
+func (c *Client) IsClosed() bool {
+	c.Lock()
+	defer c.Unlock()
+	return c.closed
 }
 
 //处理当次连接断开的清理工作
@@ -284,26 +337,38 @@ func (c *Client) putPubMsg(topic string, data []byte) {
 
 type PushMsgHandler func(string, []byte)
 
-//异步发送, todo, 同步发送，即需要sendMessage反馈结果？
+// 同步发送订阅消息
 func (c *Client) sendSubscribe(topic string) error {
+	if c.IsClosed() {
+		return ErrClosed
+	}
+
 	m := message.SubMsg{Topic: message.Topic(topic), Op: message.SubscribeOp}
 	data, err := c.codec.Marshal(m)
 	if err != nil {
 		return err
 	}
-	c.sendChan <- data
-	return nil
+	msg := NewMsg(data)
+	c.sendChan <- msg
+
+	return msg.Wait()
 }
 
-//异步发送
+//同步发送取消订阅消息
 func (c *Client) sendUnsubscribe(topic string) error {
+	if c.IsClosed() {
+		return ErrClosed
+	}
+
 	m := message.SubMsg{Topic: message.Topic(topic), Op: message.UnsubscribeOp}
 	data, err := c.codec.Marshal(m)
 	if err != nil {
 		return err
 	}
-	c.sendChan <- data
-	return nil
+	msg := NewMsg(data)
+	c.sendChan <- msg
+
+	return msg.Wait()
 }
 
 // func (c *Client) sendMessage(m message.SubMsg) error {
@@ -330,11 +395,12 @@ func (c *Client) sendMessage(ctx context.Context) (err error) {
 			return ctx.Err()
 		// case <-c.stopSend:
 		// 	return errors.New("stopSend")
-		case d, ok := <-c.sendChan:
+		case msg, ok := <-c.sendChan:
 			if !ok {
 				return errors.New("sendChan closed")
 			}
-			err = c.conn.WriteMessage(ws.BinaryMessage, d)
+			err = c.conn.WriteMessage(ws.BinaryMessage, msg.d)
+			msg.Complete(err)
 			if err != nil {
 				return err
 			}
