@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/jursonmo/subpub/server"
+	"github.com/jursonmo/subpub/session"
 )
 
 func main() {
@@ -30,6 +32,16 @@ func main() {
 		mylog.Errorf("NewServer fail:%v", err)
 		return
 	}
+
+	onConnect := func(s session.Sessioner) {
+		fmt.Printf("connected, id:%s, local:%v, remote:%v\n", s.SessionID(), s.UnderlayConn().LocalAddr(), s.UnderlayConn().RemoteAddr())
+	}
+	s.SetOnConnect(onConnect)
+
+	onDisonnect := func(s session.Sessioner) {
+		fmt.Printf("disconnected, id:%s, local:%v, remote:%v\n", s.SessionID(), s.UnderlayConn().LocalAddr(), s.UnderlayConn().RemoteAddr())
+	}
+	s.SetOnDisconnect(onDisonnect)
 
 	app := kratos.New(
 		kratos.Name(Name),

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jursonmo/subpub/client"
+	"github.com/jursonmo/subpub/session"
 )
 
 var topic1 = "topic1"
@@ -61,9 +62,13 @@ func subscribe(ctx context.Context) *client.Client {
 	// 	client.WithEndpoint("ws://localhost:8000"+client.SubscriberPath),
 	// 	client.WithClientCodec("json"),
 	// )
+	onConnect := func(s session.Sessioner) {
+		fmt.Printf("subscriber client connected, id:%s, remote:%v", s.SessionID(), s.UnderlayConn().RemoteAddr())
+	}
 	cli := client.NewSubcriber(
 		client.WithEndpoint("ws://localhost:8000"),
 		client.WithClientCodec("json"),
+		client.WithOnConnect(onConnect),
 	)
 
 	err := cli.Start(ctx)
