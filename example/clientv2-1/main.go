@@ -15,6 +15,14 @@ import (
 	"github.com/jursonmo/subpub/session"
 )
 
+/*
+为了上层调用比较方便，不需要业务层处理connecting 逻辑。
+采用 New ,Start(ctx), Stop(ctx) 的模式后, start 就负责在后台起一个任务负责连接重连的任务
+这样就必须注册的方式，注册OnDialFail, OnConnected, OnDisconnect 等handler
+什么时候能发送数据，在 OnConnected handler 里。
+用ctx 来控制整体的生命周期， cancel 就能 stop 这个整个生命周期，
+所以 Stop 只需要执行cancel
+*/
 var topic1 = "topic1"
 var topic2 = "topic2"
 var wg = sync.WaitGroup{}
