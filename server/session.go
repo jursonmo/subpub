@@ -28,6 +28,7 @@ var channelBufSize = 128
 type Subscrber = Session
 type Session struct {
 	sync.Mutex
+	session.BaseSession
 	msgHandlers map[int]SessionMsgHandle
 	//when session closed, need to unsubscribe all topics that already subscribed
 	topics  []Topic

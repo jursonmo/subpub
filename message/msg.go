@@ -17,3 +17,5 @@ type PubMsg struct {
 	Topic Topic
 	Body  []byte
 }
+
+type TopicMsgHandler func(string, []byte)

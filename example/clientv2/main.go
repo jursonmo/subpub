@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jursonmo/subpub/client"
+	"github.com/jursonmo/subpub/message"
 	"github.com/jursonmo/subpub/session"
 )
 
@@ -90,7 +91,7 @@ func subscribe(ctx context.Context) *client.Client {
 	handler := func(topic string, data []byte) {
 		fmt.Printf("handler: receive message, topic:%s, data:%s\n", topic, string(data))
 	}
-	err = cli.SubscribeWithHandler(topic2, client.PushMsgHandler(handler))
+	err = cli.SubscribeWithHandler(topic2, message.TopicMsgHandler(handler))
 	if err != nil {
 		log.Panic(err)
 	}

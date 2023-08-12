@@ -75,9 +75,19 @@ var ErrClosed = errors.New("closed")
 func (c *Client) SessionID() string {
 	return c.id
 }
+
 func (c *Client) UnderlayConn() net.Conn {
 	return c.conn.UnderlyingConn()
 }
+
+func (c *Client) WriteMessage(d []byte) error {
+	err := c.conn.WriteMessage(ws.BinaryMessage, d)
+	if err != nil {
+		log.Printf("Error during writing ping to websocket:%v \n", err)
+	}
+	return err
+}
+
 func (c *Client) Endpoints() []string {
 	return []string{c.endpoint.String()}
 }
@@ -335,8 +345,6 @@ func (c *Client) putPubMsg(topic string, data []byte) {
 }
 */
 
-type PushMsgHandler func(string, []byte)
-
 // 同步发送订阅消息
 func (c *Client) sendSubscribe(topic string) error {
 	if c.IsClosed() {
@@ -408,7 +416,7 @@ func (c *Client) sendMessage(ctx context.Context) (err error) {
 	}
 }
 
-func (c *Client) SubscribeWithHandler(topic string, handler PushMsgHandler) error {
+func (c *Client) SubscribeWithHandler(topic string, handler message.TopicMsgHandler) error {
 	if err := c.sendSubscribe(topic); err != nil {
 		return err
 	}
@@ -424,14 +432,14 @@ func (c *Client) Subscribe(topic string) (chan []byte, error) {
 
 	//ch := c.Channel(message.Topic(topic))
 	//c.pubHandler.Store(message.Topic(topic), c.putPubMsg)
-	//c.pubHandler.Store(message.Topic(topic), PushMsgHandler(func(s string, b []byte) { ch <- b }))
+	//c.pubHandler.Store(message.Topic(topic), message.TopicMsgHandler(func(s string, b []byte) { ch <- b }))
 
 	// c.once.Do(
 	// 	func() {
 	// 		go c.readMessage()
 	// 	})
 	ch := c.Channel(message.Topic(topic))
-	err := c.SubscribeWithHandler(topic, PushMsgHandler(func(s string, b []byte) { ch <- b }))
+	err := c.SubscribeWithHandler(topic, message.TopicMsgHandler(func(s string, b []byte) { ch <- b }))
 	return ch, err
 }
 
@@ -468,7 +476,7 @@ func (c *Client) readMessage() error {
 				continue
 			}
 			if h, ok := c.pubHandler.Load(m.Topic); ok {
-				h.(PushMsgHandler)(string(m.Topic), m.Body)
+				h.(message.TopicMsgHandler)(string(m.Topic), m.Body)
 			}
 		}
 	}
