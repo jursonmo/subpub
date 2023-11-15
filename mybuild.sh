@@ -2,6 +2,7 @@
 
 set -xe
 
+exe_file=subpub
 os=$1
 arch=$2
 ver=$3
@@ -14,20 +15,19 @@ if [ "x$arch" = "x" ];then
     arch="amd64"
 fi
 
-
-commitID=`git rev-parse HEAD`
-time=`date +%Y%m%d`
-buildTime=`echo ${time:2}`
-
-#version with commitID and buildTime
-buildVersion="$ver.$commitID.$buildTime"
-
 if [ x$ver = "x" ];then     
-    buildVersion=`git describe --tags`
-    ver=`git describe --abbrev=0 --tags` #最新的tag
+    buildVersion=`git describe --tags` #v2.0.1-17-g0d7b4df
+    ver=`git describe --abbrev=0 --tags` #最新的tag:v2.0.1
+else
+    commitID=`git rev-parse HEAD`
+    buildVersion= $ver-$commitID
 fi
 
-echo "os:$os, arch:$arch, ver:$ver, buildVersion:$buildVersion"
+time=`date +%Y%m%d`
+buildTime=`echo ${time:2}`
+goversion=`go version|awk '{print $3}'`
 
-GOOS=$os GOARCH=$arch go build -o $exe_file_$os${arch}_$ver -ldflags \
-"-s -w -X main.version=$buildVersion" main.go
+echo "os:$os, arch:$arch, ver:$ver, buildVersion:$buildVersion, buildTime:$buildTime, goVersion:$goversion"
+
+GOOS=$os GOARCH=$arch go build -o ${exe_file}_$os${arch}_$ver -ldflags \
+"-s -w -X main.Version=$buildVersion -X main.BuildTime=$buildTime -X main.BuildGoVersion=$goversion" main/main.go

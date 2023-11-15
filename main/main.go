@@ -14,12 +14,24 @@ import (
 )
 
 var (
-	configPath string
-	Version    string = "unset by build" //会被替换: -ldflags "-X main.Version=${VERSION}"
+	configPath     string
+	Version        string = "unset by build" //会被替换: -ldflags "-X main.Version=${VERSION}"
+	BuildTime      string
+	BuildGoVersion string
 )
+
+/*
+# ./subpub_linuxamd64_v2.0.1 -v
+subscribe version v2.0.1-17-g0d7b4df
+# ./subpub_linuxamd64_v2.0.1 version
+Inside rootCmd PersistentPreRun with args: []
+subpub version: v2.0.1-17-g0d7b4df, build time:231115, go version:go1.18.6
+*/
 
 func init() {
 	cmd.Version = Version
+	cmd.BuildTime = BuildTime
+	cmd.BuildGoVersion = BuildGoVersion
 	RootCmd.AddCommand(cmd.VersionCmd)
 	RootCmd.Flags().StringVarP(&configPath, "config", "c", "./config.yaml", "config file path")
 }
@@ -28,7 +40,7 @@ var RootCmd = &cobra.Command{
 	Use:     "subscribe and publish topic",
 	Short:   "short: subpub program",
 	Long:    "long: ",
-	Version: Version,
+	Version: Version, // -v 会打印subscribe verson xxxxx
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		fmt.Printf("Inside rootCmd PersistentPreRun with args: %v\n", args)
 	},
