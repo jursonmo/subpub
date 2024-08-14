@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
+	"github.com/jursonmo/subpub/common"
 	"github.com/jursonmo/subpub/session"
 )
 
@@ -71,12 +72,12 @@ func WithOnStop(h func(session.Sessioner)) ClientOption {
 
 func AddSubsrciberPath() ClientOption {
 	return func(o *Client) {
-		o.url += SubscriberPath
+		o.url += common.SubscriberPath
 	}
 }
 
 func AddPublisherPath() ClientOption {
 	return func(o *Client) {
-		o.url += PublisherPath
+		o.url += common.PublisherPath
 	}
 }

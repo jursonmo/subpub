@@ -94,8 +94,8 @@ func NewServer(logger log.Logger, opts ...ServerOption) (*Server, error) {
 	//http.HandleFunc(SubscriberPath, s.subscribeHandler)
 	//http.HandleFunc(PublisherPath, s.publishHandler)
 	mux := http.NewServeMux()
-	mux.HandleFunc(SubscriberPath, s.subscribeHandler)
-	mux.HandleFunc(PublisherPath, s.publishHandler)
+	mux.HandleFunc(common.SubscriberPath, s.subscribeHandler)
+	mux.HandleFunc(common.PublisherPath, s.publishHandler)
 	s.Server.Handler = mux //s.Serve() will use thix mux instead of DefaultMux to handler client request
 	return s, nil
 }

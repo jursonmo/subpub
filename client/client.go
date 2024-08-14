@@ -71,7 +71,7 @@ type Client struct {
 var ErrDisconnected = errors.New("Disconnected")
 var ErrClosed = errors.New("closed")
 
-//实现 session.Sessioner 接口
+// 实现 session.Sessioner 接口
 func (c *Client) SessionID() string {
 	return c.id
 }
@@ -92,8 +92,8 @@ func (c *Client) Endpoints() []string {
 	return []string{c.endpoint.String()}
 }
 
-var SubscriberPath = "/subscribe"
-var PublisherPath = "/publish"
+// var SubscriberPath = "/subscribe"
+// var PublisherPath = "/publish"
 
 func NewSubcriber(opts ...ClientOption) *Client {
 	return NewClient(append(opts, AddSubsrciberPath())...)
@@ -277,7 +277,7 @@ func (c *Client) IsClosed() bool {
 	return c.closed
 }
 
-//处理当次连接断开的清理工作
+// 处理当次连接断开的清理工作
 func (c *Client) Disconnect() {
 	c.Lock()
 	defer c.Unlock()
@@ -362,7 +362,7 @@ func (c *Client) sendSubscribe(topic string) error {
 	return msg.Wait()
 }
 
-//同步发送取消订阅消息
+// 同步发送取消订阅消息
 func (c *Client) sendUnsubscribe(topic string) error {
 	if c.IsClosed() {
 		return ErrClosed
