@@ -48,7 +48,7 @@ func main() {
 	if err != nil {
 		log.Panic(err)
 	}
-	err = pubCli.Publish(topic1, []byte("shoudn't recevie this mesage"))
+	err = pubCli.Publish(topic1, []byte("shoudn't recevie this message, if you see this message, it's bug"))
 	if err != nil {
 		log.Panic(err)
 	}
