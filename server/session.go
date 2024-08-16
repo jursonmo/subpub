@@ -31,8 +31,7 @@ type Session struct {
 	sync.Mutex
 	session.BaseSession
 	msgHandlers map[int]SessionMsgHandle
-	//when session closed, need to unsubscribe all topics that already subscribed
-	topics  []Topic
+
 	id      sessionID
 	conn    *ws.Conn
 	server  *Server
@@ -179,45 +178,10 @@ func (s *Session) Start(ctx context.Context) {
 }
 
 func (s *Session) SubscribeTopic(topic Topic) {
-	// exist := false
-	// s.Lock()
-	// for _, t := range s.topics {
-	// 	if t == topic {
-	// 		exist = true
-	// 	}
-	// }
-	// if !exist {
-	// 	s.topics = append(s.topics, topic)
-	// }
-	// s.Unlock()
-
-	// if !exist {
-	// 	s.server.AddSubscriber(s, topic)
-	// }
-
 	s.sub.Subscribe(string(topic))
 }
 
 func (s *Session) UnsubscribeTopic(topic Topic) {
-	// removeIndex := 0
-	// exist := false
-	// s.Lock()
-	// for i, t := range s.topics {
-	// 	if t == topic {
-	// 		exist = true
-	// 		removeIndex = i
-	// 		break
-	// 	}
-	// }
-	// if exist {
-	// 	s.topics = append(s.topics[0:removeIndex], s.topics[removeIndex+1:]...)
-	// }
-	// s.Unlock()
-
-	// if exist {
-	// 	s.server.RemoveSubscriber(s, topic)
-	// }
-
 	s.sub.UnSubscribe(string(topic))
 }
 
