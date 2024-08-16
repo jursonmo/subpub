@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
@@ -15,8 +14,8 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 	ws "github.com/gorilla/websocket"
 	"github.com/jursonmo/subpub/common"
-	"github.com/jursonmo/subpub/message"
 	"github.com/jursonmo/subpub/session"
+	"github.com/jursonmo/subpub/subscribe"
 )
 
 type Server struct {
@@ -36,8 +35,9 @@ type Server struct {
 	path    string
 	timeout time.Duration
 
-	subMutex    sync.RWMutex
-	subscribers map[Topic]*Subscribers
+	// subMutex    sync.RWMutex
+	// subscribers map[Topic]*Subscribers
+	subscriberMgr *subscribe.SubscriberMgr
 
 	codec encoding.Codec //default json
 
@@ -49,19 +49,20 @@ type Server struct {
 
 type WsHandler func(s *Server, w http.ResponseWriter, r *http.Request)
 
-type Subscribers struct {
-	subMap map[sessionID]*Subscrber
-}
+// type Subscribers struct {
+// 	subMap map[sessionID]*Subscrber
+// }
 
 func NewServer(logger log.Logger, opts ...ServerOption) (*Server, error) {
 	s := &Server{
-		network:      "tcp4",
-		address:      "localhost:8080",
-		timeout:      time.Second * 10,
-		log:          logger,
-		codec:        encoding.GetCodec("json"),
-		subscribers:  make(map[message.Topic]*Subscribers),
-		pathHandlers: make(map[string]WsHandler),
+		network: "tcp4",
+		address: "localhost:8080",
+		timeout: time.Second * 10,
+		log:     logger,
+		codec:   encoding.GetCodec("json"),
+		//subscribers:   make(map[message.Topic]*Subscribers),
+		subscriberMgr: subscribe.NewSubscriberMgr(),
+		pathHandlers:  make(map[string]WsHandler),
 	}
 
 	s.upgrader = &ws.Upgrader{
@@ -204,42 +205,46 @@ func (s *Server) publishHandler(res http.ResponseWriter, req *http.Request) {
 }
 
 func (s *Server) public(topic Topic, data []byte) int {
-	s.subMutex.RLock()
-	defer s.subMutex.RUnlock()
-	subers, ok := s.subscribers[topic]
-	if !ok {
-		return 0
-	}
-	for _, sub := range subers.subMap {
-		sub.put(PubMsg{Topic: topic, Body: data})
-	}
-	return len(subers.subMap)
+	// s.subMutex.RLock()
+	// defer s.subMutex.RUnlock()
+	// subers, ok := s.subscribers[topic]
+	// if !ok {
+	// 	return 0
+	// }
+	// for _, sub := range subers.subMap {
+	// 	sub.put(PubMsg{Topic: topic, Body: data})
+	// }
+	// return len(subers.subMap)
+	n, _ := s.subscriberMgr.Publish(nil, string(topic), data)
+	return n
 }
 
 func (s *Server) AddSubscriber(sub *Subscrber, topic Topic) {
-	s.subMutex.Lock()
-	defer s.subMutex.Unlock()
-	subscribers, ok := s.subscribers[topic]
-	if !ok {
-		subMap := make(map[sessionID]*Subscrber)
-		subMap[sub.id] = sub
+	// s.subMutex.Lock()
+	// defer s.subMutex.Unlock()
+	// subscribers, ok := s.subscribers[topic]
+	// if !ok {
+	// 	subMap := make(map[sessionID]*Subscrber)
+	// 	subMap[sub.id] = sub
 
-		s.subscribers[topic] = &Subscribers{subMap: subMap}
-		return
-	}
-	subscribers.subMap[sub.id] = sub
+	// 	s.subscribers[topic] = &Subscribers{subMap: subMap}
+	// 	return
+	// }
+	// subscribers.subMap[sub.id] = sub
+	s.subscriberMgr.AddSubscriber(string(topic), sub.sub)
 }
 
 func (s *Server) RemoveSubscriber(sub *Subscrber, topic Topic) {
-	s.subMutex.Lock()
-	defer s.subMutex.Unlock()
-	subscribers, ok := s.subscribers[topic]
-	if !ok {
-		return
-	}
-	delete(subscribers.subMap, sub.id)
-	//there is no subscribers on this topic?
-	if len(subscribers.subMap) == 0 {
-		delete(s.subscribers, topic)
-	}
+	// s.subMutex.Lock()
+	// defer s.subMutex.Unlock()
+	// subscribers, ok := s.subscribers[topic]
+	// if !ok {
+	// 	return
+	// }
+	// delete(subscribers.subMap, sub.id)
+	// //there is no subscribers on this topic?
+	// if len(subscribers.subMap) == 0 {
+	// 	delete(s.subscribers, topic)
+	// }
+	s.subscriberMgr.RemoveSubscriber(sub.sub, string(topic))
 }

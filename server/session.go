@@ -14,6 +14,7 @@ import (
 	"github.com/jursonmo/subpub/common"
 	"github.com/jursonmo/subpub/message"
 	"github.com/jursonmo/subpub/session"
+	"github.com/jursonmo/subpub/subscribe"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -24,7 +25,7 @@ type sessionID string
 
 var channelBufSize = 128
 
-//subscrber as session
+// subscrber as session
 type Subscrber = Session
 type Session struct {
 	sync.Mutex
@@ -41,15 +42,18 @@ type Session struct {
 	done    chan struct{}
 	closed  bool
 	eg      *errgroup.Group
+
+	sub subscribe.Subscriber
 }
 
-//check on compiling
+// check on compiling
 var _ session.Sessioner = (*Session)(nil)
 
-//实现 session.Sessioner 接口
+// 实现 session.Sessioner 接口
 func (s *Session) SessionID() string {
 	return string(s.id)
 }
+
 func (s *Session) UnderlayConn() net.Conn {
 	return s.conn.UnderlyingConn()
 }
@@ -81,11 +85,27 @@ func NewSession(conn *ws.Conn, s *Server, opts ...SessionOpt) *Session {
 	for _, opt := range opts {
 		opt(session)
 	}
+
+	session.sub = s.subscriberMgr.NewSubscriber(
+		subscribe.SubscriberID(session.id),
+		session.emilBoxMsgHandle,
+	)
 	return session
 }
 
+func (s *Session) emilBoxMsgHandle(topic string, b []byte) error {
+	msg := PubMsg{Topic: message.Topic(topic), Body: b}
+	//需要写成非阻塞
+	err := s.put(msg)
+	if err != nil {
+		s.server.hlog.Error(err)
+		return err
+	}
+	return nil
+}
+
 func (s *Session) String() string {
-	return fmt.Sprintf("subscriber:%s", info(s.conn))
+	return fmt.Sprintf("subscriber:%s,%s", s.id, info(s.conn))
 }
 
 func (s *Session) log() *log.Helper {
@@ -108,17 +128,18 @@ func (s *Session) Encode(v interface{}) ([]byte, error) {
 	return s.Codec().Marshal(v)
 }
 
-func (s *Session) put(m PubMsg) {
+func (s *Session) put(m PubMsg) error {
 	data, err := s.Encode(&m)
 	if err != nil {
 		s.log().Error(err)
-		return
+		return err
 	}
 	select {
 	case s.send <- data:
 	default:
-		s.log().Errorf("%v send queue is full", s)
+		return fmt.Errorf("%v send queue is full", s)
 	}
+	return nil
 }
 
 func (s *Session) wait() error {
@@ -135,9 +156,11 @@ func (s *Session) close() {
 	s.closed = true
 	//close(s.done) //instead of errgroup
 
-	for _, topic := range s.topics {
-		s.server.RemoveSubscriber(s, topic)
-	}
+	// for _, topic := range s.topics {
+	// 	s.server.RemoveSubscriber(s, topic)
+	// }
+	s.sub.Close() //关闭订阅器,会自动退订所有的topics, 会调用sm.RemoveSubscriber()
+
 	s.conn.Close()
 
 	s.log().Errorf("%v close ok", s)
@@ -156,42 +179,46 @@ func (s *Session) Start(ctx context.Context) {
 }
 
 func (s *Session) SubscribeTopic(topic Topic) {
-	exist := false
-	s.Lock()
-	for _, t := range s.topics {
-		if t == topic {
-			exist = true
-		}
-	}
-	if !exist {
-		s.topics = append(s.topics, topic)
-	}
-	s.Unlock()
+	// exist := false
+	// s.Lock()
+	// for _, t := range s.topics {
+	// 	if t == topic {
+	// 		exist = true
+	// 	}
+	// }
+	// if !exist {
+	// 	s.topics = append(s.topics, topic)
+	// }
+	// s.Unlock()
 
-	if !exist {
-		s.server.AddSubscriber(s, topic)
-	}
+	// if !exist {
+	// 	s.server.AddSubscriber(s, topic)
+	// }
+
+	s.sub.Subscribe(string(topic))
 }
 
 func (s *Session) UnsubscribeTopic(topic Topic) {
-	removeIndex := 0
-	exist := false
-	s.Lock()
-	for i, t := range s.topics {
-		if t == topic {
-			exist = true
-			removeIndex = i
-			break
-		}
-	}
-	if exist {
-		s.topics = append(s.topics[0:removeIndex], s.topics[removeIndex+1:]...)
-	}
-	s.Unlock()
+	// removeIndex := 0
+	// exist := false
+	// s.Lock()
+	// for i, t := range s.topics {
+	// 	if t == topic {
+	// 		exist = true
+	// 		removeIndex = i
+	// 		break
+	// 	}
+	// }
+	// if exist {
+	// 	s.topics = append(s.topics[0:removeIndex], s.topics[removeIndex+1:]...)
+	// }
+	// s.Unlock()
 
-	if exist {
-		s.server.RemoveSubscriber(s, topic)
-	}
+	// if exist {
+	// 	s.server.RemoveSubscriber(s, topic)
+	// }
+
+	s.sub.UnSubscribe(string(topic))
 }
 
 func (s *Session) readLoop(ctx context.Context) error {
