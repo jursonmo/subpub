@@ -1,6 +1,6 @@
 module github.com/jursonmo/subpub
 
-go 1.18
+go 1.22.3
 
 require (
 	github.com/go-kratos/kratos/v2 v2.6.1
@@ -15,6 +15,7 @@ require (
 	github.com/go-playground/form/v4 v4.2.0 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
+	github.com/jursonmo/subscribe v1.0.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	golang.org/x/sys v0.5.0 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect

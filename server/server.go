@@ -15,7 +15,7 @@ import (
 	ws "github.com/gorilla/websocket"
 	"github.com/jursonmo/subpub/common"
 	"github.com/jursonmo/subpub/session"
-	"github.com/jursonmo/subpub/subscribe"
+	"github.com/jursonmo/subscribe"
 )
 
 type Server struct {

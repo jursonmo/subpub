@@ -14,7 +14,7 @@ import (
 	"github.com/jursonmo/subpub/common"
 	"github.com/jursonmo/subpub/message"
 	"github.com/jursonmo/subpub/session"
-	"github.com/jursonmo/subpub/subscribe"
+	"github.com/jursonmo/subscribe"
 	"golang.org/x/sync/errgroup"
 )
 
