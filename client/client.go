@@ -31,6 +31,7 @@ import (
 
 type Client struct {
 	sync.Mutex
+	once        sync.Once
 	ctx         context.Context
 	cancel      context.CancelFunc
 	id          string
@@ -182,32 +183,30 @@ func (c *Client) Start(ctx context.Context) error {
 }
 
 func (c *Client) Stop(ctx context.Context) error {
-	c.Lock()
-	defer c.Unlock()
+	c.once.Do(func() {
+		c.Lock()
+		c.closed = true
+		c.Unlock()
+		log.Printf("client:%v Stopping\n", c)
 
-	if c.closed {
-		return nil
-	}
-	c.closed = true
-	log.Printf("client:%v Stopping\n", c)
+		//清理
+		if c.onStopHandler != nil {
+			c.onStopHandler(c)
+		}
+		if c.cancel != nil {
+			c.cancel()
+		}
 
-	//清理
-	if c.onStopHandler != nil {
-		c.onStopHandler(c)
-	}
-	if c.cancel != nil {
-		c.cancel()
-	}
+		//notify subscribe channel
+		for _, ch := range c.subChan {
+			close(ch)
+		}
 
-	//notify subscribe channel
-	for _, ch := range c.subChan {
-		close(ch)
-	}
+		//清理sendCh 缓存的Msg
+		c.clearMsg()
 
-	//清理sendCh 缓存的Msg
-	c.clearMsg()
-
-	log.Printf("client:%v Stopped\n", c)
+		log.Printf("client:%v Stopped\n", c)
+	})
 	return nil
 }
 
