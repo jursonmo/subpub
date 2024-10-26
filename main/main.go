@@ -15,7 +15,9 @@ import (
 
 var (
 	configPath     string
-	Version        string = "unset by build" //会被替换: -ldflags "-X main.Version=${VERSION}"
+	AppName        string = "subpub"
+	AppVersion     string = "unset"          //会被替换: -ldflags "-X main.AppVersion=${VERSION}"
+	BuildVersion   string = "unset_by_build" // -v 会打印subscribe verson xxxxx-xxx, 带有commitID
 	BuildTime      string
 	BuildGoVersion string
 	BuildGitBranch string
@@ -30,7 +32,7 @@ subpub version: v2.0.1-17-g0d7b4df, build time:231115, go version:go1.18.6
 */
 
 func init() {
-	cmd.Version = Version
+	cmd.Version = AppVersion
 	cmd.BuildTime = BuildTime
 	cmd.BuildGoVersion = BuildGoVersion
 	RootCmd.AddCommand(cmd.VersionCmd)
@@ -41,7 +43,7 @@ var RootCmd = &cobra.Command{
 	Use:     "subscribe and publish topic",
 	Short:   "short: subpub program",
 	Long:    "long: ",
-	Version: Version, // -v 会打印subscribe verson xxxxx
+	Version: BuildVersion, // -v 会打印subscribe verson xxxxx-xxx
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		fmt.Printf("Inside rootCmd PersistentPreRun with args: %v\n", args)
 	},
@@ -86,7 +88,7 @@ func appStart(configFile string) error {
 
 	myapp := kratos.New(
 		kratos.Name(appConf.Name),
-		kratos.Version(Version),
+		kratos.Version(AppVersion),
 		kratos.Server(s),
 	)
 
