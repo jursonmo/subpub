@@ -2,7 +2,7 @@
 
 set -xe
 
-exe_file=subpub
+appName=subpub
 os=$1
 arch=$2
 ver=$3
@@ -23,11 +23,19 @@ else
     buildVersion= $ver-$commitID
 fi
 
+#GIT_REVISION=$(git rev-parse --short HEAD)
+GIT_BRANCH=$(git name-rev --name-only HEAD)
+
 time=`date +%Y%m%d`
 buildTime=`echo ${time:2}`
 goversion=`go version|awk '{print $3}'`
 
 echo "os:$os, arch:$arch, ver:$ver, buildVersion:$buildVersion, buildTime:$buildTime, goVersion:$goversion"
 
-GOOS=$os GOARCH=$arch go build -o ${exe_file}_$os${arch}_$ver -ldflags \
-"-s -w -X main.Version=$buildVersion -X main.BuildTime=$buildTime -X main.BuildGoVersion=$goversion" main/main.go
+#程序名称展示app名称,os和arch,版本号(tag), 程序运行展示编译时commitId,编译时间,go版本,git分支
+GOOS=$os GOARCH=$arch go build -o ${appName}_$os${arch}_$ver -ldflags \
+"-s -w -X main.Version=$buildVersion \
+-X main.BuildTime=$buildTime \
+-X main.BuildGoVersion=$goversion \
+-X main.BuildGitBranch=$GIT_BRANCH " main/main.go
+

@@ -18,6 +18,7 @@ var (
 	Version        string = "unset by build" //会被替换: -ldflags "-X main.Version=${VERSION}"
 	BuildTime      string
 	BuildGoVersion string
+	BuildGitBranch string
 )
 
 /*
