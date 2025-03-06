@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"os"
+	"runtime"
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
@@ -66,6 +67,10 @@ func getTlsConfig(crt, key string) *tls.Config {
 }
 
 func appStart(configFile string) error {
+	fmt.Printf("Go编译版本: %s\n", runtime.Version())
+	fmt.Printf("目标操作系统: %s\n", runtime.GOOS)
+	fmt.Printf("目标架构: %s\n", runtime.GOARCH)
+
 	appConf := conf.ConfigPrase(configFile)
 	fmt.Printf("config: %+v\n", appConf)
 
